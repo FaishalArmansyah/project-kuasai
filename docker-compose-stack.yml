@@ -1,0 +1,98 @@
+version: "3.1"
+services:
+
+  proxy:
+    image: nubie13/proxy-prod:v1
+    networks:
+      - ext_net
+      - proxy_net
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: any
+    ports:
+      - '80:80'
+    volumes:
+      - data_proxy:/etc/nginx/conf.d/
+
+  web:
+    image: nubie13/web-prod:v1
+    networks:
+      - proxy_net
+      - int_net
+    depends_on:
+      - mysql
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: any
+    volumes:
+      - data_web:/var/www/html
+    
+  pma:
+    image: nubie13/pma-prod:v1
+    networks:
+      - proxy_net
+      - int_net
+    depends_on:
+      - mysql
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: any
+    environment:
+      PMA_HOST: mysql
+    volumes:
+      - data_pma:/etc/phpmyadmin
+    
+  mysql:
+    image: nubie13/mysql-prod:v1
+    networks:
+      - int_net
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: any
+    secrets:
+      - sql_root
+      - sql_user
+      - sql_password
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/sql_root
+      MYSQL_DATABASE: dbkuasai
+      MYSQL_USER_FILE: /run/secrets/sql_user
+      MYSQL_PASSWORD: /run/secrets/sql_password
+    volumes:
+      - data_mysql:/var/lib/mysql
+      
+networks:
+  ext_net:
+  proxy_net:
+  int_net:
+  
+secrets:
+  sql_root:
+    external: true
+  sql_user:
+    external: true
+  sql_password:
+    external: true     
+      
+volumes:
+  data_proxy:
+  data_web:
+  data_mysql:
+  data_pma:
+  
